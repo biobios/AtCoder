@@ -24,35 +24,56 @@ int main()
         cin >> A[i];
     }
 
-    set<int64_t> s;
-    map<int64_t, uint64_t> m;
-    s.insert(0);
-    m[0] = 1;
+    uint64_t result = 0;
 
-    uint64_t result = 1;
+    vector<vector<uint64_t>> dp(N + 1, vector<uint64_t>(2001, 0));
+
+    dp[0][1000] = 1;
 
     for (size_t i = 0; i < N; i++)
     {
-        set<int64_t> s2;
-        map<int64_t, uint64_t> m2;
-        uint64_t sum = 0;
-        for (auto x : s)
+        for (size_t v = 0; v < 2001; v++)
         {
-            s2.insert(x + A[i]);
-            uint64_t m_buf = m[x];
-            sum += m_buf;
-            if (x == 0 && m[A[i]] >= 1)
-                m_buf--;
-            m2[x + A[i]] += m_buf;
+            if (dp[i][v] == 0)
+                continue;
+            if (v == 1000)
+            {
+                for (size_t j = i; j < N; j++)
+                {
+                    for (size_t l = 990; l <= 1010; l++)
+                    {
+                        if (l == 1000)
+                            continue;
+                        for (size_t k = i; k < j; k++)
+                        {
+                            if (A[k] + 1000 == l)
+                            {
+                                dp[j + 1][l + A[j]] += dp[i][v];
+                                dp[j + 1][l + A[j]] %= 1000000007;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (size_t j = i; j < N; j++)
+                {
+                    dp[j + 1][v + A[j]] += dp[i][v];
+                    dp[j + 1][v + A[j]] %= 1000000007;
+                }
+            }
         }
+    }
 
-        for (auto m_e : m2)
+    for (size_t i = 0; i < N + 1; i++)
+    {
+        for (size_t j = 0; j < 2001; j++)
         {
-            m[m_e.first] += m_e.second;
+            result += dp[i][j] % 1000000007;
+            result %= 1000000007;
         }
-
-        result += sum - 1;
-        s.merge(s2);
     }
 
     cout << result << endl;
