@@ -46,11 +46,12 @@ int main()
                         if (A[k] == first_term)
                         {
                             count++;
-                            for (int64_t l = count - 1; l >= 0; l--)
+                            for (int64_t l = count; l >= 1; l--)
                             {
-                                result[l + 1] += dp[l];
+                                result[l + 1] += dp[l - 1];
                                 result[l + 1] %= MOD;
-                                dp[l + 1] += dp[l];
+                                dp[l] += dp[l - 1];
+                                dp[l] %= MOD;
                             }
                         }
                     }
@@ -58,19 +59,16 @@ int main()
                 }
                 for (size_t k = j + 1; k < N; k++)
                 {
-                    if (diff < 0 && (A[k] - first_term) > 0)
-                        continue;
-                    if (diff > 0 && (A[k] - first_term) < 0)
-                        continue;
-                    if ((A[k] - first_term) % diff != 0)
+                    if (abs(A[k] - first_term) % abs(diff) != 0)
                         continue;
 
                     uint64_t index = (A[k] - first_term) / diff;
-                    if (index <= 0 || index >= N)
+                    if (index <= 0 || index >= N - 1)
                         continue;
                     result[index + 1] += dp[index - 1];
                     result[index + 1] %= MOD;
                     dp[index] += dp[index - 1];
+                    dp[index] %= MOD;
                 }
             }
         }
