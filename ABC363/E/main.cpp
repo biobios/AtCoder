@@ -13,128 +13,102 @@
 
 using namespace std;
 
-class Node
-{
-public:
-    Node *parent = nullptr;
-    uint64_t rank = 0;
-    uint64_t size = 1;
-    uint64_t height = 0;
-
-public:
-    Node *getParent(vector<Node *> *nodeList)
-    {
-
-        if (parent == nullptr)
-        {
-            for (auto &&n : *nodeList)
-            {
-                n->parent = this;
-            }
-            return this;
-        }
-
-        nodeList->push_back(this);
-        return parent->getParent(nodeList);
-    }
-
-    static Node *Union(Node *a, Node *b)
-    {
-        vector<Node *> nodeList;
-        auto aRoot = a->getParent(&nodeList);
-        nodeList.clear();
-        auto bRoot = b->getParent(&nodeList);
-
-        if (aRoot->rank > bRoot->rank)
-        {
-            bRoot->parent = aRoot;
-            aRoot->size += bRoot->size;
-            return aRoot;
-        }
-        else if (aRoot->rank < bRoot->rank)
-        {
-            aRoot->parent = bRoot;
-            bRoot->size += aRoot->size;
-            return bRoot;
-        }
-        else if (aRoot != bRoot)
-        {
-            aRoot->parent = bRoot;
-            bRoot->rank++;
-            bRoot->size += aRoot->size;
-            return bRoot;
-        }
-
-        return aRoot;
-    }
-};
-
 int main()
 {
+
     uint64_t H, W, Y;
     cin >> H >> W >> Y;
-    vector<pair<uint64_t, pair<uint64_t, uint64_t>>> A;
-    map<pair<uint64_t, uint64_t>, Node *> nodes;
-    Node *ocean = new Node();
-    ocean->size = 0;
+
+    vector<vector<uint64_t>> A(H, vector<uint64_t>(W));
+
+    for (auto &a : A)
+    {
+        for (auto &aa : a)
+        {
+            cin >> aa;
+            aa--;
+        }
+    }
+
+    vector<vector<pair<uint64_t, uint64_t>>> Q(Y);
 
     for (size_t i = 0; i < H; i++)
     {
-        for (size_t j = 0; j < W; j++)
+        uint64_t a = A[i][0];
+        A[i][0] = -1ull;
+        if (a < Y)
+            Q[a].push_back({i, 0});
+
+        a = A[i][W - 1];
+        A[i][W - 1] = -1ull;
+        if (a < Y)
+            Q[a].push_back({i, W - 1});
+    }
+
+    for (size_t i = 0; i < W; i++)
+    {
+        uint64_t a = A[0][i];
+        A[0][i] = -1ull;
+        if (a < Y)
+            Q[a].push_back({0, i});
+
+        a = A[H - 1][i];
+        A[H - 1][i] = -1ull;
+        if (a < Y)
+            Q[a].push_back({H - 1, i});
+    }
+
+    for (size_t i = 0; i < Y; i++)
+    {
+        for (size_t j = 0; j < Q[i].size(); j++)
         {
-            uint64_t a;
-            cin >> a;
-            A.push_back({a, {i, j}});
-            nodes[{i, j}] = new Node();
-            nodes[{i, j}]->height = a;
+            auto [x, y] = Q[i][j];
+
+            // 上下左右がi以下の場合はQiに追加
+            // iより大きくYより小さい場合はQaに追加
+            if (x > 0 && A[x - 1][y] < Y)
+            {
+                if (A[x - 1][y] <= i)
+                    Q[i].push_back({x - 1, y});
+                else
+                    Q[A[x - 1][y]].push_back({x - 1, y});
+                A[x - 1][y] = -1ull;
+            }
+
+            if (x < H - 1 && A[x + 1][y] < Y)
+            {
+                if (A[x + 1][y] <= i)
+                    Q[i].push_back({x + 1, y});
+                else
+                    Q[A[x + 1][y]].push_back({x + 1, y});
+                A[x + 1][y] = -1ull;
+            }
+
+            if (y > 0 && A[x][y - 1] < Y)
+            {
+                if (A[x][y - 1] <= i)
+                    Q[i].push_back({x, y - 1});
+                else
+                    Q[A[x][y - 1]].push_back({x, y - 1});
+                A[x][y - 1] = -1ull;
+            }
+
+            if (y < W - 1 && A[x][y + 1] < Y)
+            {
+                if (A[x][y + 1] <= i)
+                    Q[i].push_back({x, y + 1});
+                else
+                    Q[A[x][y + 1]].push_back({x, y + 1});
+                A[x][y + 1] = -1ull;
+            }
         }
     }
 
-    sort(A.begin(), A.end());
-
-    size_t index = 0;
-    uint64_t land = H * W;
-    for (size_t i = 1; i <= Y; i++)
+    uint64_t result = H * W;
+    for (size_t i = 0; i < Y; i++)
     {
-        while (index < A.size() && A[index].first <= i)
-        {
-            auto [a, position] = A[index];
-            auto [x, y] = position;
-            auto node = nodes[{x, y}];
-
-            if (x == 0 || x == H - 1 || y == 0 || y == W - 1)
-            {
-                node = Node::Union(ocean, node);
-                ocean = node;
-            }
-
-            // 上下左右がi以下の場合、Unionする
-            if (x > 0 && nodes[{x - 1, y}]->height <= i)
-            {
-                node = Node::Union(node, nodes[{x - 1, y}]);
-            }
-            if (x < H - 1 && nodes[{x + 1, y}]->height <= i)
-            {
-                node = Node::Union(node, nodes[{x + 1, y}]);
-            }
-            if (y > 0 && nodes[{x, y - 1}]->height <= i)
-            {
-                node = Node::Union(node, nodes[{x, y - 1}]);
-            }
-            if (y < W - 1 && nodes[{x, y + 1}]->height <= i)
-            {
-                node = Node::Union(node, nodes[{x, y + 1}]);
-            }
-
-            nodes[{x, y}] = node;
-
-            index++;
-        }
-
-        vector<Node *> nodeList;
-        ocean = ocean->getParent(&nodeList);
-
-        cout << land - ocean->size << endl;
+        result -= Q[i].size();
+        cout << result << endl;
     }
 
     return 0;
