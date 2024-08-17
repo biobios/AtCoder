@@ -33,57 +33,40 @@ int main()
         cin >> A[i];
     }
 
-    vector<pair<vector<size_t>, size_t>> loops;
-    vector<pair<size_t, uint64_t>> loop_position(N, {-1ull, 0});
+    vector<vector<size_t>> doubling(60, vector<size_t>(N));
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        doubling[0][i] = X[i];
+    }
+
+    for (size_t i = 1; i < 60; ++i)
+    {
+        for (size_t j = 0; j < N; ++j)
+        {
+            doubling[i][j] = doubling[i - 1][doubling[i - 1][j]];
+        }
+    }
 
     vector<uint64_t> result(N, 0);
 
-    for (size_t i = 0; i < N; i++)
+    for (size_t i = 0; i < N; ++i)
     {
-        if (loop_position[i].first < loops.size())
-            continue;
-
-        map<size_t, size_t> visited;
-        size_t current_loop = X[i];
-        vector<size_t> loop = {i};
-
-        loop_position[i] = {loops.size(), 0};
-
-        while (!visited.contains(current_loop))
+        size_t now = i;
+        uint64_t k = K;
+        for (size_t j = 0; j < 60; ++j)
         {
-            visited[current_loop] = loop.size();
-            loop.push_back(current_loop);
-            loop_position[current_loop] = {loops.size(), loop.size() - 1};
-            current_loop = X[current_loop];
-        }
-
-        loops.push_back({loop, visited[current_loop]});
-    }
-
-    for (size_t i = 0; i < N; i++)
-    {
-
-        auto &[loop, loop_start] = loops[loop_position[i].first];
-        uint64_t loop_size = loop.size() - loop_start;
-        auto &[loop_vector, loop_pos] = loop_position[i];
-
-        uint64_t ope_count = K;
-        if (loop_pos < loop_start)
-        {
-            if (ope_count < loop_start - loop_pos)
+            if (k & 1)
             {
-                result[i] = A[loop[ope_count + loop_pos]];
-                continue;
+                now = doubling[j][now];
             }
-            ope_count -= loop_start - loop_pos;
+            k >>= 1;
         }
 
-        ope_count %= loop_size;
-
-        result[i] = A[loop[loop_start + ope_count]];
+        result[i] = A[now];
     }
 
-    for (size_t i = 0; i < N; i++)
+    for (size_t i = 0; i < N; ++i)
     {
         cout << result[i] << " ";
     }
