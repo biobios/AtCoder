@@ -22,8 +22,8 @@ int main()
     int64_t K;
     cin >> N >> K;
 
-    map<int64_t, vector<size_t>> sum_index_map;
-    sum_index_map[0].push_back(0);
+    map<int64_t, uint64_t> sum_map;
+    sum_map[0] = 1;
     vector<int64_t> dp(N + 1, 0);
 
     dp[0] = 1;
@@ -40,17 +40,18 @@ int main()
 
         dp[i + 1] = dp_sum;
 
-        if (sum_index_map.contains(sum - K))
-            for (auto index : sum_index_map[sum - K])
-            {
-                dp[i + 1] -= dp[index];
-                dp[i + 1] = (dp[i + 1] + MOD) % MOD;
-            }
+        if (sum_map.contains(sum - K))
+        {
+            dp[i + 1] -= sum_map[sum - K];
+            dp[i + 1] += MOD;
+            dp[i + 1] %= MOD;
+        }
 
         dp_sum += dp[i + 1];
         dp_sum %= MOD;
 
-        sum_index_map[sum].push_back(i + 1);
+        sum_map[sum] += dp[i + 1];
+        sum_map[sum] %= MOD;
     }
 
     cout << dp[N] << endl;
