@@ -27,42 +27,23 @@ int main()
         A[i] -= 1;
     }
 
-    vector<size_t> appeared(N, false);
-    vector<uint64_t> kind_count(N + 1, 0);
+    vector<int64_t> prev_appeared_index(N, -1);
+    uint64_t result = (N + 1) * N * N / 2;
 
-    uint64_t sum = 0;
-
-    for (size_t i = 0; i < N; ++i)
+    for (uint64_t i = 0; i < N; ++i)
     {
-        if (appeared[A[i]])
-        {
-            kind_count[i + 1] = kind_count[i];
-        }
-        else
-        {
-            appeared[A[i]] = true;
-            kind_count[i + 1] = kind_count[i] + 1;
-        }
-
-        sum += kind_count[i + 1] * (i + 1);
-    }
-
-    vector<size_t> prev_appeared_index(N, 0);
-
-    for (size_t i = 0; i < N; ++i)
-    {
-
-        sum -= N - i;
-
-        if (prev_appeared_index[A[i]] != 0)
-        {
-            sum -= i - prev_appeared_index[A[i]];
-        }
-
+        int64_t diff = i - prev_appeared_index[A[i]];
+        result -= diff * (diff - 1) / 2;
         prev_appeared_index[A[i]] = i;
     }
 
-    cout << sum << endl;
+    for (auto i : prev_appeared_index)
+    {
+        auto diff = N - i;
+        result -= diff * (diff - 1) / 2;
+    }
+
+    cout << result << endl;
 
     return 0;
 }
