@@ -15,14 +15,20 @@
 
 using namespace std;
 
-// GRID_SIZE    SCORE
+// GRID_SIZE    SCORE       V2SCORE
 // 60           13864292
 // 45           15303632
 // 37           15994790
-// 34           16194948
-// 30           15963275
-// 22           14853791
-// 15           12273199
+// 34           16194948    17065573
+// 30           15963275    17323937
+// 22           14853791    17647487
+// 15           12273199    17924557
+// 10                       18317305
+// 5                        19439461
+// 4                        19287414
+// 3                        19791916
+// 2                        21179792
+// 1                        22803065
 
 int main()
 {
@@ -36,9 +42,7 @@ int main()
         cin >> points[i].first >> points[i].second;
     }
 
-    sort(points.begin(), points.end());
-
-    constexpr uint64_t GRID_SIZE = 34;
+    constexpr uint64_t GRID_SIZE = 1;
 
     vector<vector<vector<pair<uint64_t, uint64_t>>>> grid(GRID_SIZE, vector<vector<pair<uint64_t, uint64_t>>>(GRID_SIZE));
 
@@ -67,14 +71,92 @@ int main()
         }
     }
 
-    for (auto column : grid)
+    for (auto &&column : grid)
     {
-        for (auto points : column)
+        for (auto &&points : column)
         {
-            for (auto [x, y] : points)
+
+            if (points.empty())
+                continue;
+
+            set<pair<uint64_t, uint64_t>> point_set(points.begin(), points.end());
+
+            auto [x, y] = *point_set.begin();
+            point_set.erase(point_set.begin());
+
+            vector<tuple<uint64_t, uint64_t, uint64_t, uint64_t>> sub_opes;
+
+            while (true)
             {
-                opes.push_back({x * GRID_SIZE / 1000000000 * 1000000000 / GRID_SIZE, y * GRID_SIZE / 1000000000 * 1000000000 / GRID_SIZE, x, y});
+                uint64_t min_cost = -1ull;
+                size_t min_i = -1ull;
+
+                for (size_t i = 0; i < points.size(); ++i)
+                {
+                    auto [c, r] = points[i];
+                    if (c == x && r == y)
+                        continue;
+                    if (c > x || r > y)
+                        continue;
+
+                    uint64_t cost = x - c + y - r;
+                    if (cost < min_cost)
+                    {
+                        min_cost = cost;
+                        min_i = i;
+                    }
+                }
+
+                if (min_i == -1ull)
+                {
+                    sub_opes.push_back({x * GRID_SIZE / 1000000000 * 1000000000 / GRID_SIZE, y * GRID_SIZE / 1000000000 * 1000000000 / GRID_SIZE, x, y});
+                    // opesにsub_opesを逆順に追加
+                    for (auto it = sub_opes.rbegin(); it != sub_opes.rend(); ++it)
+                    {
+                        opes.push_back(*it);
+                    }
+                    sub_opes.clear();
+
+                    if (point_set.empty())
+                        break;
+
+                    x = point_set.begin()->first;
+                    y = point_set.begin()->second;
+                    point_set.erase(point_set.begin());
+                }
+                else
+                {
+                    auto [c, r] = points[min_i];
+                    sub_opes.push_back({c, r, x, y});
+
+                    x = c;
+                    y = r;
+                    auto it = point_set.find({c, r});
+                    if (it != point_set.end())
+                        point_set.erase(it);
+                    else
+                    {
+                        // opesにsub_opesを逆順に追加
+                        for (auto it = sub_opes.rbegin(); it != sub_opes.rend(); ++it)
+                        {
+                            opes.push_back(*it);
+                        }
+                        sub_opes.clear();
+
+                        if (point_set.empty())
+                            break;
+                        x = point_set.begin()->first;
+                        y = point_set.begin()->second;
+
+                        point_set.erase(point_set.begin());
+                    }
+                }
             }
+
+            // for (auto [x, y] : points)
+            // {
+            //     opes.push_back({x * GRID_SIZE / 1000000000 * 1000000000 / GRID_SIZE, y * GRID_SIZE / 1000000000 * 1000000000 / GRID_SIZE, x, y});
+            // }
         }
     }
 
