@@ -34,6 +34,11 @@ using namespace std;
 // 100        22814848
 // 200        22821477
 
+// K            V4SCORE
+// 500          26458154
+// 400          26676788
+// 250          26519131
+// 100          24130106
 int main()
 {
     uint64_t N;
@@ -51,7 +56,7 @@ int main()
     vector<vector<vector<pair<uint64_t, uint64_t>>>> grid(GRID_SIZE, vector<vector<pair<uint64_t, uint64_t>>>(GRID_SIZE));
 
     // k-means法でクラスタリング
-    constexpr size_t K = 300;
+    constexpr size_t K = 400;
     constexpr size_t ITERATION = 100;
 
     vector<pair<uint64_t, uint64_t>> centers(K);
@@ -98,33 +103,51 @@ int main()
     // pointsに追加
 
     vector<vector<pair<uint64_t, uint64_t>>> cluster_points(K);
-    for (size_t i = 0; i < K; ++i)
+    for (auto [x, y] : points)
     {
-        uint64_t min_x = -1ull;
-        uint64_t min_y = -1ull;
-        for (auto [x, y] : centers)
+        uint64_t min_dist = -1ull;
+        size_t min_i = -1ull;
+        for (size_t i = 0; i < K; ++i)
         {
-            min_x = min(min_x, x);
-            min_y = min(min_y, y);
+            auto [cx, cy] = centers[i];
+            uint64_t dist = abs((int64_t)(x - cx)) + abs((int64_t)(y - cy));
+            if (dist < min_dist)
+            {
+                min_dist = dist;
+                min_i = i;
+            }
         }
-        cluster_points[i].push_back({min_x, min_y});
+        cluster_points[min_i].push_back({x, y});
     }
 
     for (size_t i = 0; i < K; ++i)
     {
 
-        auto min_x = cluster_points[i][0].first;
-        auto min_y = cluster_points[i][0].second;
+        if (cluster_points[i].empty())
+            continue;
 
-        for (auto [x, y] : cluster_points[i])
+        auto min_x = cluster_points[i][0].first;
+        size_t min_x_index = 0;
+        auto min_y = cluster_points[i][0].second;
+        size_t min_y_index = 0;
+
+        for (size_t j = 1; j < cluster_points[i].size(); ++j)
         {
+            auto [x, y] = cluster_points[i][j];
             if (min_x > x)
+            {
                 min_x = x;
+                min_x_index = j;
+            }
             if (min_y > y)
+            {
                 min_y = y;
+                min_y_index = j;
+            }
         }
 
-        points.push_back({min_x, min_y});
+        if (min_x_index != min_y_index)
+            points.push_back({min_x, min_y});
     }
 
     // 0~10^9の座標を0~59に変換
