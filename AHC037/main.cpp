@@ -30,6 +30,10 @@ using namespace std;
 // 2                        21179792
 // 1                        22803065
 
+// K          SCORE
+// 100        22814848
+// 200        22821477
+
 int main()
 {
     uint64_t N;
@@ -45,6 +49,83 @@ int main()
     constexpr uint64_t GRID_SIZE = 1;
 
     vector<vector<vector<pair<uint64_t, uint64_t>>>> grid(GRID_SIZE, vector<vector<pair<uint64_t, uint64_t>>>(GRID_SIZE));
+
+    // k-means法でクラスタリング
+    constexpr size_t K = 300;
+    constexpr size_t ITERATION = 100;
+
+    vector<pair<uint64_t, uint64_t>> centers(K);
+    // 初期の中心点は0~1000000000で一様に分布させる
+    for (size_t i = 0; i < K; ++i)
+    {
+        centers[i] = points[i];
+    }
+
+    for (size_t iter = 0; iter < ITERATION; ++iter)
+    {
+        vector<vector<pair<uint64_t, uint64_t>>> clusters(K);
+        for (auto [x, y] : points)
+        {
+            uint64_t min_dist = -1ull;
+            size_t min_i = -1ull;
+            for (size_t i = 0; i < K; ++i)
+            {
+                auto [cx, cy] = centers[i];
+                uint64_t dist = abs((int64_t)(x - cx)) + abs((int64_t)(y - cy));
+                if (dist < min_dist)
+                {
+                    min_dist = dist;
+                    min_i = i;
+                }
+            }
+            clusters[min_i].push_back({x, y});
+        }
+
+        for (size_t i = 0; i < K; ++i)
+        {
+            uint64_t sum_x = 0;
+            uint64_t sum_y = 0;
+            for (auto [x, y] : clusters[i])
+            {
+                sum_x += x;
+                sum_y += y;
+            }
+            centers[i] = {sum_x / clusters[i].size(), sum_y / clusters[i].size()};
+        }
+    }
+
+    // クラスタごとにx座標・y座標の最小値を求めて
+    // pointsに追加
+
+    vector<vector<pair<uint64_t, uint64_t>>> cluster_points(K);
+    for (size_t i = 0; i < K; ++i)
+    {
+        uint64_t min_x = -1ull;
+        uint64_t min_y = -1ull;
+        for (auto [x, y] : centers)
+        {
+            min_x = min(min_x, x);
+            min_y = min(min_y, y);
+        }
+        cluster_points[i].push_back({min_x, min_y});
+    }
+
+    for (size_t i = 0; i < K; ++i)
+    {
+
+        auto min_x = cluster_points[i][0].first;
+        auto min_y = cluster_points[i][0].second;
+
+        for (auto [x, y] : cluster_points[i])
+        {
+            if (min_x > x)
+                min_x = x;
+            if (min_y > y)
+                min_y = y;
+        }
+
+        points.push_back({min_x, min_y});
+    }
 
     // 0~10^9の座標を0~59に変換
     for (auto [x, y] : points)
