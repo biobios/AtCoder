@@ -42,6 +42,8 @@ int main()
             offset += N;
         }
 
+        ope.clear();
+
         for (size_t j = 0; j < M; ++j)
         {
             ope.push_back(make_pair(((edge[j].second + offset - 1 + N) % N), count[(edge[j].first + offset) % N]));
@@ -50,7 +52,7 @@ int main()
         for (auto [index, c] : ope)
         {
             // debug
-            cout << "index: " << index << ", c: " << c << endl;
+            // cout << "index: " << index << ", c: " << c << endl;
             count[index] += c;
             count[index] %= 998244353;
         }
