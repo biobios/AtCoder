@@ -20,37 +20,49 @@ int main()
 
     cin >> N >> W;
 
-    vector<pair<uint64_t, uint64_t>> items(N);
+    vector<vector<uint64_t>> items(3001);
 
     for (size_t i = 0; i < N; ++i)
     {
         uint64_t w, v;
         cin >> w >> v;
 
-        items[i] = {v, w};
+        items[w].push_back(v);
     }
 
     vector<int64_t> dp(W + 1, -1ull);
 
     dp[0] = 0;
 
-    for (size_t i = 0; i < N; ++i)
+    for (size_t i = 0; i < items.size(); ++i)
     {
-        auto [value, weight] = items[i];
-        auto next_dp = dp;
+        if (items[i].empty())
+            continue;
 
-        for (size_t j = 1; j * weight <= W; j *= 2)
+        auto dp_next = dp;
+
+        priority_queue<int64_t> pq;
+        for (auto v : items[i])
         {
-            auto multi_val = value * j - j * j;
-            auto multi_weight = weight * j;
+            pq.push(v - 1);
+        }
 
-            for (size_t k = 0; k + multi_weight <= W; ++k)
+        int64_t value = 0;
+
+        for (size_t j = 1; j * i <= W; ++j)
+        {
+            auto pq_top = pq.top();
+            value += pq_top;
+            pq.pop();
+            pq.push(pq_top - 2);
+
+            for (size_t k = 0; k + j * i <= W; ++k)
             {
-                next_dp[k + multi_weight] = max(next_dp[k + multi_weight], (int64_t)(dp[k] + multi_val));
+                dp_next[k + j * i] = max(dp_next[k + j * i], dp[k] + value);
             }
         }
 
-        dp = move(next_dp);
+        dp = dp_next;
     }
 
     cout << *max_element(dp.begin(), dp.end()) << endl;
