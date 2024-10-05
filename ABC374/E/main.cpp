@@ -31,7 +31,7 @@ int main()
 
     // 二分探索
     int64_t left = 0;
-    int64_t right = 1e9;
+    int64_t right = 1e9 + 1;
 
     // 達成不可能な最小の処理能力を求める
 
@@ -44,51 +44,38 @@ int main()
 
         for (auto [A, B, C, D] : machines)
         {
+            uint64_t min_cost = -1ull;
 
-            uint64_t needs = middle;
-
-            double cost_performance_A = (double)B / A;
-            double cost_performance_B = (double)D / C;
-
-            if (cost_performance_A > cost_performance_B)
+            for (size_t i = 0; i <= C; ++i)
             {
-                current -= needs / A * B;
-                needs %= A;
+                int64_t needs = middle;
+                uint64_t cost = i * B;
 
-                if ((needs + A - 1) / A * B < (needs + C - 1) / C * D)
-                {
-                    current -= (needs + A - 1) / A * B;
-                }
-                else
-                {
-                    current -= (needs + C - 1) / C * D;
-                }
+                needs -= i * A;
+                if (needs > 0)
+                    cost += (needs + C - 1) / C * D;
 
-                if (current < 0)
-                {
-                    possible = false;
-                    break;
-                }
+                min_cost = min(min_cost, cost);
             }
-            else
+
+            for (size_t i = 0; i <= A; ++i)
             {
-                current -= needs / C * D;
-                needs %= C;
+                int64_t needs = middle;
+                uint64_t cost = i * D;
 
-                if ((needs + C - 1) / C * D < (needs + A - 1) / A * B)
-                {
-                    current -= (needs + C - 1) / C * D;
-                }
-                else
-                {
-                    current -= (needs + A - 1) / A * B;
-                }
+                needs -= i * C;
+                if (needs > 0)
+                    cost += (needs + A - 1) / A * B;
 
-                if (current < 0)
-                {
-                    possible = false;
-                    break;
-                }
+                min_cost = min(min_cost, cost);
+            }
+
+            current -= min_cost;
+
+            if (current < 0)
+            {
+                possible = false;
+                break;
             }
         }
 
