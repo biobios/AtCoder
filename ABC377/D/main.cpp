@@ -25,51 +25,28 @@ int main()
     {
         uint64_t l, r;
         cin >> l >> r;
-        Ranges[i] = {l, r};
+        Ranges[i] = {r, l};
     }
 
     sort(Ranges.begin(), Ranges.end());
 
-    set<pair<uint64_t, size_t>> d;
-    set<size_t> to_delete;
-    auto it = Ranges.begin();
-    while (it != Ranges.end())
+    vector<uint64_t> d(M, 0);
+    d[0] = 1;
+    for (size_t i = 0; i < N; ++i)
     {
-        auto [l, r] = *it;
-        auto more_it = lower_bound(d.begin(), d.end(), make_pair<uint64_t, size_t>((uint64_t)r, (size_t)0));
-        auto copy_it = more_it;
-        while (more_it != d.end())
-        {
-            to_delete.insert(more_it->second);
-            more_it++;
-        }
-        d.erase(copy_it, d.end());
-        d.insert({r, it - Ranges.begin()});
-        it++;
+        auto [r, l] = Ranges[i];
+        d[r - 1] = max(d[r - 1], l + 1);
     }
 
-    auto r_it = to_delete.rbegin();
-    while (r_it != to_delete.rend())
+    uint64_t result = 2 - d[0];
+
+    for (size_t i = 1; i < M; ++i)
     {
-        Ranges.erase(Ranges.begin() + *r_it);
-        r_it++;
+        d[i] = max(d[i], d[i - 1]);
+        result += i - d[i] + 2;
     }
 
-    uint64_t count = 0;
-    uint64_t prev_left = 0;
-
-    for (size_t i = 1; i <= M; ++i)
-    {
-        auto it = lower_bound(Ranges.begin(), Ranges.end(), make_pair<uint64_t, uint64_t>((uint64_t)i, 0));
-        if (it == Ranges.end())
-            break;
-        auto [l, r] = *it;
-        count += (l - prev_left) * (M - r + 1);
-        prev_left = l;
-        i = l;
-    }
-
-    cout << (M * (M + 1) / 2 - count) << endl;
+    cout << result << endl;
 
     return 0;
 }
