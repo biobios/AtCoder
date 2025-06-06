@@ -51,7 +51,7 @@ size_t find_closest_color(const color &target, const vector<color> &colors)
 
 size_t get_liner_position(size_t x, size_t y, size_t side_length)
 {
-    if (x % 2 == 0)
+    if (y % 2 == 0)
     {
         return x + (y * side_length);
     }
@@ -137,12 +137,13 @@ public:
     }
     
     // 色を追加する
-    void add_color(const color &c)
+    double add_color(const color &c)
     {
         auto [current_color, amount, area_size] = splitted_areas.back();
         double ratio = amount / min(amount + 1.0, (double)area_size);
         color new_color = mix(current_color, c, ratio);
         splitted_areas.back() = make_tuple(new_color, min(amount + 1.0, (double)area_size), area_size);
+        return amount + 1.0 - min(amount + 1.0, (double)area_size); // 無駄にした量を返す
     }
     
     // 現在の色を使用する
@@ -157,10 +158,12 @@ public:
     }
     
     // 色を取り除く
-    void remove_color()
+    double remove_color()
     {
         auto& [current_color, amount, area_size] = splitted_areas.back();
+        double current_amount = amount;
         amount = max(amount - 1.0, 0.0);
+        return current_amount - amount;
     }
     
     // 仮に色を追加した場合の新しい色を取得する
@@ -317,78 +320,159 @@ struct operation
     }
 };
 
-int main()
+struct answer
 {
-    uint64_t N, K, H, T, D;
-    cin >> N >> K >> H >> T >> D;
-    using color = tuple<double, double, double>;
-    vector<color> own_colors(K);
-    for (size_t i = 0; i < K; ++i)
-    {
-        double c, m, y;
-        cin >> c >> m >> y;
-        own_colors[i] = make_tuple(c, m, y);
-    }
+    vector<operation> operations;
+    vector<vector<bool>> vertical_walls;
+    vector<vector<bool>> horizontal_walls;
+    double score;
 
-    vector<color> target_colors(H);
-    for (size_t i = 0; i < H; ++i)
+    void print() const
     {
-        double c, m, y;
-        cin >> c >> m >> y;
-        target_colors[i] = make_tuple(c, m, y);
+        for (auto&& row : vertical_walls)
+        {
+            for (bool wall : row)
+            {
+                cout << (wall ? "1 " : "0 ");
+            }
+            cout << endl;
+        }
+        for (auto&& row : horizontal_walls)
+        {
+            for (bool wall : row)
+            {
+                cout << (wall ? "1 " : "0 ");
+            }
+            cout << endl;
+        }
+
+        for (const auto &ope : operations)
+        {
+            ope.print();
+        }
     }
+};
+
+answer solve(const vector<color>& own_colors, const vector<color>& target_colors, size_t N, size_t K, size_t H, size_t T, size_t D, size_t CLUSTER_SIZE, double current_lowest_score = numeric_limits<double>::max())
+{
+    current_lowest_score += D * H; // これを超えたら打ち切る
 
     // target_colorsをk-means法でクラスタリング
     constexpr size_t ITERATION = 100;
-    constexpr size_t CLUSTER_SIZE = 16;
-    vector<vector<color>> clusters(CLUSTER_SIZE);
-
-    // target_colorsをランダムにクラスタに分割
-    for (size_t i = 0; i < H; ++i)
+    
+    // 初期中心点候補
+    vector<color> initial_centers = own_colors;
+    while (initial_centers.size() < 2 * CLUSTER_SIZE)
     {
-        size_t cluster_index = i % CLUSTER_SIZE;
-        clusters[cluster_index].push_back(target_colors[i]);
+        vector<color> next;
+        for (const auto &c : initial_centers)
+        {
+            for (const auto &d : initial_centers)
+            {
+                next.push_back(mix(c, d, 0.5));
+            }
+        }
+        
+        initial_centers = next;
+    }
+    
+    vector<color> clusters_centers;
+    clusters_centers.reserve(CLUSTER_SIZE);
+    clusters_centers.push_back(own_colors[0]);
+    while (clusters_centers.size() < CLUSTER_SIZE)
+    {
+        double max_dist = 0.0;
+        size_t max_index = 0;
+        for (size_t i = 0; i < initial_centers.size(); ++i)
+        {
+            double min_dist = numeric_limits<double>::max();
+            for (const auto &center : clusters_centers)
+            {
+                double dist = calc_error(initial_centers[i], center);
+                if (dist < min_dist)
+                {
+                    min_dist = dist;
+                }
+            }
+            
+            if (min_dist > max_dist)
+            {
+                max_dist = min_dist;
+                max_index = i;
+            }
+        }
+        
+        clusters_centers.push_back(initial_centers[max_index]);
     }
 
     for (size_t iter = 0; iter < ITERATION; ++iter)
     {
-        // 新しいクラスタ中心を計算
-        vector<color> cluster_centers(CLUSTER_SIZE, make_tuple(0.0, 0.0, 0.0));
+        vector<vector<color>> clusters(CLUSTER_SIZE);
+        // 各target_colorを最も近いクラスタ中心に割り当てる
+        for (size_t i = 0; i < H; ++i)
+        {
+            double min_error = numeric_limits<double>::max();
+            size_t min_index = 0;
+            for (size_t j = 0; j < clusters_centers.size(); ++j)
+            {
+                double error = calc_error(target_colors[i], clusters_centers[j]);
+                if (error < min_error)
+                {
+                    min_error = error;
+                    min_index = j;
+                }
+            }
+            clusters[min_index].push_back(target_colors[i]);
+        }
+
+        // 各クラスタの中心を再計算
         for (size_t i = 0; i < CLUSTER_SIZE; ++i)
         {
             if (clusters[i].empty())
                 continue;
-
             double sum_c = 0, sum_m = 0, sum_y = 0;
-            for (const auto &[c, m, y] : clusters[i])
+            for (const auto &color : clusters[i])
             {
+                auto [c, m, y] = color;
                 sum_c += c;
                 sum_m += m;
                 sum_y += y;
             }
             size_t size = clusters[i].size();
-            cluster_centers[i] = make_tuple(sum_c / size, sum_m / size, sum_y / size);
+            clusters_centers[i] = make_tuple(sum_c / size, sum_m / size, sum_y / size);
         }
 
+        // 空のクラスタの色を再設定
         for (size_t i = 0; i < CLUSTER_SIZE; ++i)
-            clusters[i].clear(); // クラスタをクリア
-
-        // 各target_colorを最も近いクラスタ中心に割り当てる
-        for (const auto &[c, m, y] : target_colors)
         {
-            double min_dist = numeric_limits<double>::max();
-            size_t min_index = 0;
-            for (size_t i = 0; i < CLUSTER_SIZE; ++i)
+            if (clusters[i].empty())
             {
-                auto [cc, cm, cy] = cluster_centers[i];
-                double dist = sqrt(pow(c - cc, 2) + pow(m - cm, 2) + pow(y - cy, 2));
-                if (dist < min_dist)
+                double max_dist = 0.0;
+                size_t max_index = 0;
+                for (size_t j = 0; j < initial_centers.size(); ++j)
                 {
-                    min_dist = dist;
-                    min_index = i;
+                    double min_dist = numeric_limits<double>::max();
+                    for (size_t k = 0; k < CLUSTER_SIZE; ++k)
+                    {
+                        if (clusters[k].empty())
+                            continue;
+                        
+                        double dist = calc_error(initial_centers[j], clusters_centers[k]);
+                        if (dist < min_dist)
+                        {
+                            min_dist = dist;
+                        }
+                    }
+                    
+                    if (min_dist > max_dist)
+                    {
+                        max_dist = min_dist;
+                        max_index = j;
+                    }
                 }
+                
+                clusters_centers[i] = initial_centers[max_index];
             }
-            clusters[min_index].push_back(make_tuple(c, m, y));
         }
     }
 
@@ -421,56 +505,6 @@ int main()
         add_wall(horizontal_walls, vertical_walls, x1, y1, x2, y2);
     }
     
-    // パレットの形状を出力
-    for (size_t j = 0; j < N; ++j)
-    {
-        for (size_t i = 0; i < N - 1; ++i)
-        {
-            if (vertical_walls[j][i])
-            {
-                cout << "1 ";
-            }
-            else
-            {
-                cout << "0 ";
-            }
-        }
-        cout << endl;
-    }
-    
-    for (size_t i = 0; i < N - 1; ++i)
-    {
-        for (size_t j = 0; j < N; ++j)
-        {
-            if (horizontal_walls[i][j])
-            {
-                cout << "1 ";
-            }
-            else
-            {
-                cout << "0 ";
-            }
-        }
-        cout << endl;
-    }
-
-    vector<color> clusters_centers;
-    for (const auto &cluster : clusters)
-    {
-        if (!cluster.empty())
-        {
-            double sum_c = 0, sum_m = 0, sum_y = 0;
-            for (const auto &[c, m, y] : cluster)
-            {
-                sum_c += c;
-                sum_m += m;
-                sum_y += y;
-            }
-            size_t size = cluster.size();
-            clusters_centers.push_back(make_tuple(sum_c / size, sum_m / size, sum_y / size));
-        }
-    }
-
     vector<vector<size_t>> color_indices_of_clusters(CLUSTER_SIZE);
     vector<size_t> cluster_indices_of_colors(H, 0);
 
@@ -493,6 +527,7 @@ int main()
 
     vector<vector<operation>> operations(CLUSTER_SIZE);
     double total_cost = 0.0;
+    T -= 2 * H; // 色の追加と色の使用のコストを引く
     for (size_t cluster_i = 0; cluster_i < CLUSTER_SIZE; ++cluster_i)
     {
         auto &color_indices = color_indices_of_clusters[cluster_i];
@@ -510,6 +545,13 @@ int main()
 
         for (size_t i = 0; i < color_needs; ++i)
         {
+            if (total_cost > current_lowest_score)
+            {
+                return answer{ .operations = {},
+                               .vertical_walls = {},
+                               .horizontal_walls = {},
+                               .score = numeric_limits<double>::max()};
+            }
             size_t rest_color_needs = color_needs - i;
             int64_t rest_available_ope_count_per_color = rest_available_ope_count / rest_color_needs;
             rest_available_ope_count -= rest_available_ope_count_per_color;
@@ -519,7 +561,10 @@ int main()
                 bool usable_current_color = current_well.has_enough_color();
                 // 選択肢をすべて列挙してコストが最少の物を選ぶ
                 // 1. 現在の色を使う use 0 ope
-                // 2. 壁を追加せずに次の色を作る use 1 ope
+                // 2. 壁を追加せずに次の色を作る use 0 ope
+                // 3. 壁を追加して次の色を作る use 1 ope
+                // 4. 色を消去して色を追加する use 1 ope
+                // 5. 壁をなくして色を作る use 1 ope
                 double cost1 = numeric_limits<double>::max();
                 if (usable_current_color)
                 {
@@ -528,7 +573,6 @@ int main()
 
                 double cost2 = numeric_limits<double>::max();
                 vector<size_t> add_color_indices_without_wall;
-                if (rest_available_ope_count_per_color > 1 || !usable_current_color)
                 {
                     vector<size_t> added_color_indices_in_simulation;
                     well well_for_simulation = current_well;
@@ -538,8 +582,8 @@ int main()
                         for (size_t j = 0; j < K; ++j)
                         {
                             well well_for_simulation2 = well_for_simulation;
-                            well_for_simulation2.add_color(own_colors[j]);
-                            double next_color_cost = well_for_simulation2.calculate_average_cost(0, color_indices, target_colors, i, own_colors);
+                            double waste_cost = D * well_for_simulation2.add_color(own_colors[j]);
+                            double next_color_cost = well_for_simulation2.calculate_average_cost(waste_cost, color_indices, target_colors, i, own_colors);
                             
                             if (next_color_cost < added_color_cost)
                             {
@@ -558,28 +602,118 @@ int main()
                         }
                     }
                 }
+                
+                double cost3 = numeric_limits<double>::max();
+                size_t add_color_index_with_wall = 0;
+                size_t splited_space_size = 0;
+                if (current_well.get_current_amount() >= 0.05 && (rest_available_ope_count_per_color >= 1 || !usable_current_color))
+                {
+                    for (size_t j = 1; j < current_well.get_area_size(); ++j)
+                    {
+                        well well_for_simulation = current_well;
+                        well_for_simulation.split_area(j);
+                        for (size_t k = 0; k < K; ++k)
+                        {
+                            well well_for_simulation2 = well_for_simulation;
+                            double waste_cost = D * well_for_simulation2.add_color(own_colors[k]);
+                            double next_color_cost = well_for_simulation2.calculate_average_cost(waste_cost, color_indices, target_colors, i, own_colors);
+                            
+                            if (next_color_cost < cost3)
+                            {
+                                cost3 = next_color_cost;
+                                add_color_index_with_wall = k;
+                                splited_space_size = j;
+                            }
+                        }
+                    }
+                }
+                
+                double cost4 = numeric_limits<double>::max();
+                size_t add_color_index_with_delete = 0;
+                if (rest_available_ope_count_per_color >= 1 || !usable_current_color)
+                {
+                    well well_for_simulation = current_well;
+                    double waste_cost = D * well_for_simulation.remove_color();
+                    for (size_t j = 0; j < K; ++j)
+                    {
+                        well well_for_simulation2 = well_for_simulation;
+                        double waste_cost2 = D * well_for_simulation2.add_color(own_colors[j]);
+                        double next_color_cost = well_for_simulation2.calculate_average_cost(waste_cost + waste_cost2, color_indices, target_colors, i, own_colors);
+                        if (next_color_cost < cost4)
+                        {
+                            cost4 = next_color_cost;
+                            add_color_index_with_delete = j;
+                        }
+                    }
+                }
+                
+                double cost5 = numeric_limits<double>::max();
+                size_t merge_count_min_cost = 0;
+                if (rest_available_ope_count_per_color >= 1 || !usable_current_color)
+                {
+                    well well_for_simulation = current_well;
+                    size_t current_merge_count = 0;
+                    while (well_for_simulation.is_split())
+                    {
+                        well_for_simulation.merge_area();
+                        current_merge_count++;
+                        double next_color_cost = well_for_simulation.calculate_average_cost(0, color_indices, target_colors, i, own_colors);
+                        if (next_color_cost < cost5)
+                        {
+                            cost5 = next_color_cost;
+                            merge_count_min_cost = current_merge_count;
+                        }
+                    }
+                }
 
-
-                if (cost1 <= cost2)
+                if (cost1 <= cost2 && cost1 <= cost3 && cost1 <= cost4 && cost1 <= cost5)
                 {
                     operations[cluster_i].emplace_back(2, sell_pos_x, sell_pos_y);
-                    rest_available_ope_count_per_color--;
                     color used_color = current_well.use_color();
                     total_cost += calc_error(used_color, target_colors[color_indices[i]]) * 10000.0; // エラーをコストに変換
                     break;
                 }
 
-                for (size_t j = 0; j < add_color_indices_without_wall.size(); ++j)
+                if (cost2 <= cost3 && cost2 <= cost4 && cost2 <= cost5)
                 {
-                    operations[cluster_i].emplace_back(1, sell_pos_x, sell_pos_y, add_color_indices_without_wall[j]);
-                    current_well.add_color(own_colors[add_color_indices_without_wall[j]]);
+                    for (size_t j = 0; j < add_color_indices_without_wall.size(); ++j)
+                    {
+                        operations[cluster_i].emplace_back(1, sell_pos_x, sell_pos_y, add_color_indices_without_wall[j]);
+                        current_well.add_color(own_colors[add_color_indices_without_wall[j]]);
+                        total_cost += D;
+                    }
+                }else if (cost3 <= cost4 && cost3 <= cost5)
+                {
+                    auto [new_end_x, new_end_y, splitted_start_x, splitted_start_y] = current_well.split_area(splited_space_size);
+                    operations[cluster_i].emplace_back(4, new_end_x, new_end_y, splitted_start_x, splitted_start_y);
                     rest_available_ope_count_per_color--;
+                    
+                    current_well.add_color(own_colors[add_color_index_with_wall]);
+                    operations[cluster_i].emplace_back(1, sell_pos_x, sell_pos_y, add_color_index_with_wall);
                     total_cost += D;
+                }else if (cost4 <= cost5)
+                {
+                    current_well.remove_color();
+                    operations[cluster_i].emplace_back(3, sell_pos_x, sell_pos_y);
+                    rest_available_ope_count_per_color--;
+
+                    current_well.add_color(own_colors[add_color_index_with_delete]);
+                    operations[cluster_i].emplace_back(1, sell_pos_x, sell_pos_y, add_color_index_with_delete);
+                    total_cost += D;
+                }else
+                {
+                    for (size_t j = 0; j < merge_count_min_cost; ++j)
+                    {
+                        auto [merged_start_x, merged_start_y, merged_end_x, merged_end_y] = current_well.merge_area();
+                        operations[cluster_i].emplace_back(4, merged_start_x, merged_start_y, merged_end_x, merged_end_y);
+                        rest_available_ope_count_per_color--;
+                    }
                 }
             }
         }
     }
 
+    answer ans;
     vector<size_t> operation_counts(CLUSTER_SIZE, 0);
     for (size_t i = 0; i < H; ++i)
     {
@@ -588,13 +722,52 @@ int main()
         auto &ope_i = operation_counts[cluster_index];
         while (ope_i < opes.size())
         {
-            opes[ope_i].print();
+            ans.operations.push_back(opes[ope_i]);
             ope_i++;
             if (opes[ope_i - 1].type == 2)
                 break;
         }
     }
     total_cost -= D * H;
-    cout << "Total cost: " << total_cost << endl;
+    ans.score = total_cost;
+    ans.vertical_walls = vertical_walls;
+    ans.horizontal_walls = horizontal_walls;
+    
+    return ans;
+}
+
+int main()
+{
+    uint64_t N, K, H, T, D;
+    cin >> N >> K >> H >> T >> D;
+    using color = tuple<double, double, double>;
+    vector<color> own_colors(K);
+    for (size_t i = 0; i < K; ++i)
+    {
+        double c, m, y;
+        cin >> c >> m >> y;
+        own_colors[i] = make_tuple(c, m, y);
+    }
+
+    vector<color> target_colors(H);
+    for (size_t i = 0; i < H; ++i)
+    {
+        double c, m, y;
+        cin >> c >> m >> y;
+        target_colors[i] = make_tuple(c, m, y);
+    }
+
+    answer min_score_ans = solve(own_colors, target_colors, N, K, H, T, D, own_colors.size());
+    for (size_t i = own_colors.size() + 1; i <= 40; ++i)
+    {
+        answer current_ans = solve(own_colors, target_colors, N, K, H, T, D, i, min_score_ans.score);
+        if (current_ans.score < min_score_ans.score)
+        {
+            min_score_ans = current_ans;
+        }
+    }
+    
+    min_score_ans.print();
+    
     return 0;
 }
