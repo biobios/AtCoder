@@ -63,35 +63,31 @@ struct Union_Find
         
         return false;
     }
-
-    void add_elem()
-    {
-        parent.push_back(parent.size());
-        rank.push_back(0);
-    }
 };
 
 int main()
 {
     uint64_t N, Q;
     cin >> N >> Q;
-    vector<pair<uint64_t, uint64_t>> nodes(N);
+    vector<pair<uint64_t, uint64_t>> nodes(N + Q);
     for (uint64_t i = 0; i < N; ++i)
     {
         cin >> nodes[i].first >> nodes[i].second;
     }
     
-    Union_Find uf(N);
+    Union_Find uf(N + Q);
     
-    map<uint64_t, vector<pair<size_t, size_t>>> distance_map;
+    priority_queue<tuple<uint64_t, size_t, size_t>, vector<tuple<uint64_t, size_t, size_t>>, greater<>> pq;
     for (size_t i = 0; i < N; ++i)
     {
         for (size_t j = i + 1; j < N; ++j)
         {
             uint64_t distance = abs((int64_t)(nodes[i].first - nodes[j].first)) + abs((int64_t)(nodes[i].second - nodes[j].second));
-            distance_map[distance].emplace_back(i, j);
+            pq.emplace(distance, i, j);
         }
     }
+    
+    size_t current_index = N;
     
     for (size_t i = 0; i < Q; ++i)
     {
@@ -101,43 +97,41 @@ int main()
         {
             uint64_t a, b;
             cin >> a >> b;
-            uf.add_elem();
-            for (size_t j = 0; j < nodes.size(); ++j)
+            for (size_t j = 0; j < current_index; ++j)
             {
                 const auto& [x, y] = nodes[j];
                 uint64_t distance = abs((int64_t)(x - a)) + abs((int64_t)(y - b));
-                distance_map[distance].emplace_back(j, nodes.size());
+                pq.emplace(distance, j, current_index);
             }
-            nodes.push_back({a, b});
+            nodes[current_index] = {a, b};
+            current_index++;
         }else if(q_type == 2)
         {
             while(true){
-                if (distance_map.empty())
+                if (pq.empty())
                 {
                     cout << -1 << endl;
                     break;
                 }
 
-                auto& [distance, pairs] = *distance_map.begin();
-                bool merged = false;
-                for (const auto& [u, v] : pairs)
+                auto [distance, u, v] = pq.top();
+                pq.pop();
+
+                if (uf.find(u) == uf.find(v))
                 {
-                    if (uf.unite(u, v))
-                    {
-                        merged = true;
-                    }
-                }
-                
-                if (merged)
-                {
-                    cout << distance << endl;
-                    distance_map.erase(distance);
-                    break;
-                }else
-                {
-                    distance_map.erase(distance);
                     continue;
                 }
+                
+                uf.unite(u, v);
+                while (!pq.empty() && get<0>(pq.top()) == distance)
+                {
+                    tie(distance, u, v) = pq.top();
+                    pq.pop();
+                    uf.unite(u, v);
+                }
+                
+                cout << distance << endl;
+                break;
             }
         }else
         {
