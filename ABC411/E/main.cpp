@@ -22,30 +22,63 @@ int main()
     uint64_t N;
     cin >> N;
     
-    vector<pair<uint64_t, uint8_t>> A;
+    vector<pair<uint64_t, uint64_t>> A;
+    uint64_t max_min = 0;
     for (uint64_t i = 0; i < N; ++i) {
-        vector<uint64_t> B(6);
+        uint64_t min_val = UINT64_MAX;
         for (uint64_t j = 0; j < 6; ++j) {
-            cin >> B[j];
+            uint64_t B;
+            cin >> B;
+            A.emplace_back(B, i);
+            if (B < min_val) {
+                min_val = B;
+            }
         }
-        sort(B.begin(), B.end());
-        for (uint8_t j = 0; j < 6; ++j) {
-            A.emplace_back(B[j], j);
+        
+        if (min_val > max_min) {
+            max_min = min_val;
         }
     }
     
     sort(A.begin(), A.end());
     
-    mint P = 0;
-    for (uint64_t i = 0; i < N * 6; ++i) {
-        auto [A_j, j] = A[i];
-        P += mint(A_j) * mint(i - j);
+    if (A.back().first == max_min) {
+        cout << mint(max_min).val() << endl;
+        return 0;
     }
     
-    // Q = 6のN乗
-    mint Q = mint(6).pow(N);
+    vector<uint8_t> B(N, 0);
     
-    // P / Q
-    cout << (P / Q).val() << endl;
+    size_t i = 0;
+    for (; i < A.size(); ++i) {
+        auto [b, idx] = A[i];
+        if (b > max_min) {
+            break;
+        }
+        
+        B[idx] += 1;
+    }
+    
+    mint all_product = 1;
+    for (uint64_t i = 0; i < N; ++i) {
+        all_product *= B[i];
+    }
+    
+    mint ExpectedValue = (A[i].first - max_min) * all_product;
+    for (; i < A.size() - 1; ++i) {
+        auto [b, idx] = A[i];
+        all_product /= B[idx];
+        B[idx] += 1;
+        all_product *= B[idx];
+
+        if (A[i + 1].first == b) {
+            continue;
+        }
+        
+        ExpectedValue += (A[i + 1].first - b) * all_product;
+    }
+
+    cout << (A.back().first - (ExpectedValue / mint(6).pow(N))).val() << endl;
+    
     return 0;
 }
