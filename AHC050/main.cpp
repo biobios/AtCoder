@@ -26,17 +26,61 @@ int main()
     }
     
     for (size_t i = 0; i < N; ++i) {
-        for (size_t j = i % 2; j < N; j += 2) {
-            if (S[i][j] == '.') {
-                cout << i << " " << j << endl;
+        size_t center = N / 2;
+        if (i % 2 == 0) {
+            for (size_t j = 1; j <= N / 2; ++j) {
+                size_t y;
+                if (j % 2 == 0) {
+                    y = center + j;
+                } else {
+                    y = center - j;
+                }
+                
+                if (S[i][y] == '.') {
+                    cout << i << " " << y << endl;
+                }
+            }
+        }else {
+            for (size_t j = 0; j <= N / 2; ++j) {
+                size_t y;
+                if (j % 2 == 0) {
+                    y = center - j;
+                } else {
+                    y = center + j;
+                }
+                if (S[i][y] == '.') {
+                    cout << i << " " << y << endl;
+                }
             }
         }
     }
-    for (size_t k = N; k > 0; --k) {
-        size_t i = k - 1;
-        for (size_t j = (i + 1) % 2; j < N; j += 2) {
-            if (S[i][j] == '.') {
-                cout << i << " " << j << endl;
+    for (size_t i = N; i > 0; --i) {
+        size_t k = i - 1;
+        size_t center = N / 2;
+        if (k % 2 == 0) {
+            for (size_t j = 0; j <= N / 2; ++j) {
+                size_t y;
+                if (j % 2 == 0) {
+                    y = center - j;
+                } else {
+                    y = center + j;
+                }
+                if (S[k][y] == '.') {
+                    cout << k << " " << y << endl;
+                }
+            }
+        } else {
+            for (size_t j = 1; j <= N / 2; ++j) {
+                size_t y;
+                if (j % 2 == 0) {
+                    y = center + j;
+                } else {
+                    y = center - j;
+                }            
+                
+                if (S[k][y] == '.') {
+                    cout << k << " " << y << endl;
+                }
             }
         }
     }
